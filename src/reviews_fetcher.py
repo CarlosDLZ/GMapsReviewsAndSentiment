@@ -2,7 +2,7 @@
 Módulo: reviews_fetcher.py
 Funciones para interactuar con la Google Places API:
  - get_place_id_from_name: Busca el place_id a partir del nombre de un negocio.
- - fetch_reviews: Descarga reseñas para un place_id dado (limitado a 5-10 reseñas por lugar).
+ - fetch_reviews: Descarga reseñas para un place_id dado (limitado a 5 reseñas, las más recientes).
 """
 
 import os
@@ -55,7 +55,8 @@ def fetch_reviews(place_id):
         - datetime_utc (formato "YYYY-MM-DD HH:MM:SS")
         - text
     Nota:
-      La API oficial limita la cantidad de reseñas (5-10 máximo).
+      La API puede devolver más de 5 reseñas si hay paginación.
+      Esta función ordena las reseñas por fecha (las más recientes primero) y retorna solo las 5 más recientes.
     """
     if not place_id:
         return [], ""
@@ -106,6 +107,20 @@ def fetch_reviews(place_id):
         next_page_token = data.get("next_page_token")
         if not next_page_token:
             break
-        # Espera recomendada por la API antes de usar el next_page_token
+        # Espera recomendada por la API antes de usar el token de paginación
         time.sleep(2)
-    return all_reviews, location_name
+    
+    # Ordenar las reseñas por datetime_utc (las más recientes primero)
+    try:
+        sorted_reviews = sorted(
+            all_reviews, 
+            key=lambda x: datetime.strptime(x["datetime_utc"], "%Y-%m-%d %H:%M:%S") if x["datetime_utc"] else datetime.min,
+            reverse=True
+        )
+    except Exception as e:
+        print(f"[ERROR] Ordenando reseñas: {e}")
+        sorted_reviews = all_reviews
+
+    # Retornar solo las 5 reseñas más recientes
+    top_reviews = sorted_reviews[:5]
+    return top_reviews, location_name
