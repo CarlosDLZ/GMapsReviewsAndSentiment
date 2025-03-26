@@ -3,6 +3,7 @@ Módulo: reviews_fetcher.py
 Funciones para interactuar con la Google Places API:
  - get_place_id_from_name: Busca el place_id a partir del nombre de un negocio.
  - fetch_reviews: Descarga reseñas para un place_id dado (limitado a 5-10 reseñas por lugar).
+ - fetch_general_place_data: Extrae datos generales del lugar (rating promedio, total reseñas, etc.).
 """
 
 import os
@@ -109,3 +110,47 @@ def fetch_reviews(place_id):
         # Espera recomendada por la API antes de usar el next_page_token
         time.sleep(2)
     return all_reviews, location_name
+
+def fetch_general_place_data(place_id):
+    """
+    Extrae información general de un lugar usando la Places Details API (New).
+    Parámetros:
+        place_id (str): ID único del lugar.
+    Retorna:
+        Diccionario con datos generales del lugar.
+    """
+    if not place_id:
+        return {}
+
+    url = "https://maps.googleapis.com/maps/api/place/details/json"
+    params = {
+        "key": API_KEY,
+        "place_id": place_id,
+        "fields": "place_id,name,formatted_address,user_ratings_total,rating,price_level,business_status,opening_hours,types"
+    }
+
+    try:
+        response = requests.get(url, params=params)
+        data = response.json()
+
+        if data.get("status") != "OK":
+            print(f"[WARN] API status: {data.get('status')}")
+            return {}
+
+        result = data.get("result", {})
+
+        return {
+            "place_id": result.get("place_id"),
+            "location_name": result.get("name"),
+            "formatted_address": result.get("formatted_address"),
+            "user_ratings_total": result.get("user_ratings_total"),
+            "rating": result.get("rating"),
+            "price_level": result.get("price_level"),
+            "business_status": result.get("business_status"),
+            "open_now": result.get("opening_hours", {}).get("open_now"),
+            "types": result.get("types")
+        }
+
+    except Exception as e:
+        print(f"[ERROR] fetch_general_place_data: {e}")
+        return {}
