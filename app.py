@@ -125,6 +125,10 @@ if st.button("Procesar"):
         st.dataframe(df[["location_name", "author_name", "rating", "datetime_utc", "text_clean", "sentiment"]])
 
         csv_data = df.to_csv(index=False, encoding="utf-8")
+# Guardar archivo con últimas 5 opiniones por lugar
+        os.makedirs("data/last5perplace", exist_ok=True)
+        timestamp_reviews = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        df.to_csv(f"data/last5perplace/reviews_last5_{timestamp_reviews}.csv", index=False)
         st.download_button(
             label="Descargar CSV",
             data=csv_data,
