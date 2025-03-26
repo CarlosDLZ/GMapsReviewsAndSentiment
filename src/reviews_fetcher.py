@@ -107,8 +107,8 @@ def fetch_reviews(place_id):
         next_page_token = data.get("next_page_token")
         if not next_page_token:
             break
-        # Espera recomendada por la API antes de usar el next_page_token
-        time.sleep(2)
+        time.sleep(2)  # Espera recomendada antes de usar el next_page_token
+
     return all_reviews, location_name
 
 def fetch_general_place_data(place_id):
@@ -126,7 +126,7 @@ def fetch_general_place_data(place_id):
     params = {
         "key": API_KEY,
         "place_id": place_id,
-        "fields": "place_id,name,formatted_address,user_ratings_total,rating,price_level,business_status,opening_hours,types"
+        "fields": "place_id,name,formatted_address,user_ratings_total,rating,types"
     }
 
     try:
@@ -145,9 +145,6 @@ def fetch_general_place_data(place_id):
             "formatted_address": result.get("formatted_address"),
             "user_ratings_total": result.get("user_ratings_total"),
             "rating": result.get("rating"),
-            "price_level": result.get("price_level"),
-            "business_status": result.get("business_status"),
-            "open_now": result.get("opening_hours", {}).get("open_now"),
             "types": result.get("types")
         }
 
