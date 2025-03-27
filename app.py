@@ -14,24 +14,12 @@ from src.sentiment_analysis import analyze_sentiment
 
 # Configuración de la página
 st.set_page_config(page_title="Reviews Dashboard", layout="wide")
-st.title("Dashboard de Reseñas con KPIs y Gráficos")
+st.title("📊 Dashboard de Reseñas con KPIs y Gráficos")
 
-# Login simple para acceso
-if "logged_in" not in st.session_state:
-    st.session_state["logged_in"] = False
-if not st.session_state["logged_in"]:
-    user = st.text_input("Usuario:")
-    pwd = st.text_input("Contraseña:", type="password")
-    if st.button("Acceder"):
-        if user == "admin" and pwd == "1234":
-            st.session_state["logged_in"] = True
-        else:
-            st.warning("Usuario/Contraseña incorrectos.")
-    st.stop()
-
-st.subheader("Ingresa lugares (uno por línea):")
+# --- Entrada de lugares
+st.subheader("📍 Ingresa lugares (uno por línea):")
 st.write("Si es place_id, escribe 'pid:ChIJ...' ; si es nombre, ingresa el nombre normal.")
-places_input = st.text_area("Lugares:", height=120)
+places_input = st.text_area("Lugares:", height=100)
 
 if st.button("Procesar"):
     all_reviews = []
@@ -44,11 +32,11 @@ if st.button("Procesar"):
 
         if line.startswith("pid:"):
             place_id = line.replace("pid:", "").strip()
-            st.info(f"Descargando reseñas para place_id={place_id}...")
+            st.info(f"📥 Descargando reseñas para place_id={place_id}...")
             revs, loc_name = fetch_reviews(place_id)
             general_info = fetch_general_place_data(place_id)
         else:
-            st.info(f"Buscando place_id para '{line}'...")
+            st.info(f"🔍 Buscando place_id para '{line}'...")
             p_id, name, addr = get_place_id_from_name(line)
             if p_id:
                 revs, loc_name = fetch_reviews(p_id)
@@ -62,12 +50,13 @@ if st.button("Procesar"):
             general_data.append(general_info)
         all_reviews.extend(revs)
 
+    # --- Información General
     if general_data:
         os.makedirs("data/general_info", exist_ok=True)
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         df_info = pd.DataFrame(general_data)
 
-        # Eliminar columnas no deseadas antes de guardar y mostrar
+        # Eliminar columnas no deseadas
         columns_to_drop = ["price_level", "business_status", "open_now"]
         df_info = df_info.drop(columns=[col for col in columns_to_drop if col in df_info.columns])
 
@@ -81,18 +70,19 @@ if st.button("Procesar"):
 
         st.dataframe(df_info)
 
+    # --- Opiniones recientes
     if not all_reviews:
         st.warning("No se obtuvieron reseñas.")
     else:
         st.markdown("---")
-        st.markdown("## 💬 Insights de Opiniones Recientes (últimas 5 por lugar)")
+        st.markdown("## 💬 Opiniones Recientes (últimas 5 por lugar)")
 
         df = pd.DataFrame(all_reviews)
         df["text_clean"] = df["text"].apply(clean_text)
         df["sentiment"] = df["text_clean"].apply(analyze_sentiment)
         df["datetime_utc"] = pd.to_datetime(df["datetime_utc"], errors="coerce")
 
-        st.markdown("### 📈 KPIs")
+        st.markdown("### KPIs")
         col1, col2, col3, col4 = st.columns(4)
         total_reviews = len(df)
         distinct_locs = df["place_id"].nunique()
@@ -110,25 +100,26 @@ if st.button("Procesar"):
         col6.metric("Rating Mínimo", f"{lowest_rating}" if lowest_rating is not None else "-")
 
         if df["datetime_utc"].notnull().any():
-            st.markdown("### 📊 Rating Promedio por Fecha")
+            st.markdown("### Rating Promedio por Fecha")
             df["date_only"] = df["datetime_utc"].dt.date
-            avg_rating_by_date = df.groupby("date_only")["rating"].mean()
-            st.line_chart(avg_rating_by_date)
+            avg_rating_by_date = df.groupby("date_only")["rating"].mean().sort_index()
+            st.line_chart(avg_rating_by_date, use_container_width=True)
         else:
             st.info("No se pudo graficar por fecha (datetime_utc nulo).")
 
-        st.markdown("### 📊 Distribución de Sentimiento")
+        st.markdown("### Distribución de Sentimiento")
         sentiment_counts = df["sentiment"].value_counts()
-        st.bar_chart(sentiment_counts)
+        st.bar_chart(sentiment_counts, use_container_width=True)
 
-        st.markdown("### 📋 Tabla de Reseñas con Sentimiento")
+        st.markdown("### Tabla de Reseñas con Sentimiento")
         st.dataframe(df[["location_name", "author_name", "rating", "datetime_utc", "text_clean", "sentiment"]])
 
-        csv_data = df.to_csv(index=False, encoding="utf-8")
-# Guardar archivo con últimas 5 opiniones por lugar
+        # Guardar archivo con últimas 5 opiniones por lugar
         os.makedirs("data/last5perplace", exist_ok=True)
         timestamp_reviews = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         df.to_csv(f"data/last5perplace/reviews_last5_{timestamp_reviews}.csv", index=False)
+
+        csv_data = df.to_csv(index=False, encoding="utf-8")
         st.download_button(
             label="Descargar CSV",
             data=csv_data,
