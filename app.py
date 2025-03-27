@@ -14,6 +14,12 @@ st.title("📊 Dashboard de Reseñas con KPIs y Gráficos")
 st.subheader("📍 Ingresa lugares (uno por línea):")
 st.write("Si es place_id, escribe 'pid:ChIJ...' ; si es nombre, ingresa el nombre normal.")
 places_input = st.text_area("Lugares:", height=100)
+idioma = st.selectbox(
+    "Idioma preferido para las reseñas:",
+    options=["Predeterminado", "Español", "Inglés"],
+    index=0
+)
+idioma_map = {"Predeterminado": "", "Español": "es", "Inglés": "en"}
 
 if st.button("Procesar"):
     all_reviews = []
@@ -28,7 +34,7 @@ if st.button("Procesar"):
         if line.startswith("pid:"):
             place_id = line.replace("pid:", "").strip()
             st.info(f"📥 Descargando reseñas para place_id={place_id}...")
-            revs, loc_name = fetch_reviews(place_id)
+            revs, loc_name = fetch_reviews(place_id, language=idioma_map[idioma])
             general_info = fetch_general_place_data(place_id)
         else:
             st.info(f"🔍 Buscando place_id para '{line}'...")
