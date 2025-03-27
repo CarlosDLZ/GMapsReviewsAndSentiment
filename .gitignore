@@ -13,3 +13,8 @@ Thumbs.db
 # Variables de entorno / configuraciones privadas
 .env
 config.py
+
+
+# Archivos de datos generados automáticamente
+data/general_info/
+data/last5perplace/
