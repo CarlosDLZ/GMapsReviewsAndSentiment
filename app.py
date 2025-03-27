@@ -40,7 +40,7 @@ if st.button("Procesar"):
             st.info(f"🔍 Buscando place_id para '{line}'...")
             p_id, name, addr = get_place_id_from_name(line)
             if p_id:
-                revs, loc_name = fetch_reviews(p_id)
+                revs, loc_name = fetch_reviews(p_id, language=idioma_map[idioma])
                 general_info = fetch_general_place_data(p_id)
             else:
                 st.warning(f"No se encontró place_id para '{line}'")
@@ -113,18 +113,22 @@ if "df" in st.session_state and not st.session_state["df"].empty:
     col6.metric("Rating Mínimo", f"{lowest_rating}" if lowest_rating is not None else "-")
 
     if df["datetime_utc"].notnull().any():
-        st.markdown("### Rating Promedio por Fecha")
         df["date_only"] = df["datetime_utc"].dt.date
         avg_rating_by_date = df.groupby("date_only")["rating"].mean().sort_index()
-        st.line_chart(avg_rating_by_date, use_container_width=True)
+        sentiment_counts = df["sentiment"].value_counts()
+
+        col_chart1, col_chart2 = st.columns(2)
+        with col_chart1:
+            st.markdown("### 📈 Rating Promedio por Fecha")
+            st.line_chart(avg_rating_by_date, use_container_width=True)
+
+        with col_chart2:
+            st.markdown("### 📊 Distribución de Sentimiento")
+            st.bar_chart(sentiment_counts, use_container_width=True)
     else:
         st.info("No se pudo graficar por fecha (datetime_utc nulo).")
 
-    st.markdown("### Distribución de Sentimiento")
-    sentiment_counts = df["sentiment"].value_counts()
-    st.bar_chart(sentiment_counts, use_container_width=True)
-
-    st.markdown("### Tabla de Reseñas con Sentimiento")
+    st.markdown("### 🗂️ Tabla de Reseñas con Sentimiento")
     st.dataframe(df[["location_name", "author_name", "rating", "datetime_utc", "text_clean", "sentiment"]])
 
     # Botón para descargar CSV de reseñas
@@ -136,3 +140,4 @@ if "df" in st.session_state and not st.session_state["df"].empty:
         mime="text/csv",
         key="download_reviews"
     )
+
