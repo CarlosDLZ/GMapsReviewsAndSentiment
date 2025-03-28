@@ -103,11 +103,62 @@ if "df_info" in st.session_state and not st.session_state["df_info"].empty:
         key="download_info"
     )
 
-    # Mapa de ubicaciones
-    if "lat" in df_info.columns and "lng" in df_info.columns:
-        st.markdown("### 🗺️ Mapa de Ubicaciones")
-        df_map = df_info[["lat", "lng"]].rename(columns={"lat": "latitude", "lng": "longitude"})
-        st.map(df_map)
+    # Mapa con etiquetas y bolas grandes
+    if "lat" in df_info.columns and "lng" in df_info.columns and "df" in st.session_state:
+        st.markdown("### 🗺️ Mapa Interactivo de Ubicaciones")
+
+        df = st.session_state["df"]
+        df["text_clean"] = df["text"].apply(clean_text)
+        df["sentiment"] = df["text_clean"].apply(analyze_sentiment)
+
+        resumen_sentimiento = df.groupby("location_name").agg(
+            avg_rating=("rating", "mean"),
+            pct_positivo=("sentiment", lambda x: (x == "positive").mean() * 100)
+        ).reset_index()
+
+        df_info = df_info.rename(columns={"name": "location_name"})
+        df_mapa = pd.merge(df_info, resumen_sentimiento, on="location_name", how="left")
+        df_mapa = df_mapa.rename(columns={"lat": "latitude", "lng": "longitude"})
+
+        import pydeck as pdk
+
+        scatter_layer = pdk.Layer(
+            "ScatterplotLayer",
+            data=df_mapa,
+            get_position='[longitude, latitude]',
+            get_fill_color='[255, 105, 180, 160]',
+            get_radius=300,
+            pickable=True
+        )
+
+        df_mapa["label"] = df_mapa.apply(
+            lambda row: f"{row['location_name']} ⭐{row['avg_rating']:.1f} ({row['pct_positivo']:.0f}%)", axis=1
+        )
+
+        text_layer = pdk.Layer(
+            "TextLayer",
+            data=df_mapa,
+            get_position='[longitude, latitude]',
+            get_text="label",
+            get_size=16,
+            get_color=[0, 0, 0],
+            get_angle=0,
+            get_text_anchor="'middle'",
+            get_alignment_baseline="'bottom'"
+        )
+
+        view_state = pdk.ViewState(
+            latitude=df_mapa["latitude"].mean(),
+            longitude=df_mapa["longitude"].mean(),
+            zoom=11,
+            pitch=30
+        )
+
+        st.pydeck_chart(pdk.Deck(
+            map_style='mapbox://styles/mapbox/light-v9',
+            initial_view_state=view_state,
+            layers=[scatter_layer, text_layer]
+        ))
 
 # Opiniones recientes
 if "df" in st.session_state and not st.session_state["df"].empty:
