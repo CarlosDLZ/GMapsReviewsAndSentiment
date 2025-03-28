@@ -7,25 +7,40 @@ from src.text_processing import clean_text
 from src.sentiment_analysis import analyze_sentiment
 
 # Configuración de la página
-st.set_page_config(page_title="Reviews Dashboard", layout="wide")
-st.title("📊 Dashboard de Reseñas con KPIs y Gráficos")
+st.set_page_config(page_title="Análisis de Opiniones", layout="wide")
 
-# Entrada de lugares
-st.subheader("📍 Ingresa lugares (uno por línea):")
-st.write("Si es place_id, escribe 'pid:ChIJ...' ; si es nombre, ingresa el nombre normal.")
-places_input = st.text_area("Lugares:", height=100)
-idioma = st.selectbox(
-    "Idioma preferido para las reseñas:",
-    options=["Predeterminado", "Español", "Inglés"],
-    index=0
-)
+# Título principal
+st.markdown("""
+    <div style='text-align: center;'>
+        <h1 style='font-size: 42px;'>🔎 Análisis Inteligente de Opiniones en Google Maps</h1>
+        <p style='font-size: 18px; color: gray;'>Descubre lo que opinan tus clientes. Ingresa lugares y obtén insights valiosos al instante.</p>
+    </div>
+""", unsafe_allow_html=True)
+
+# Input y selector de idioma
+st.markdown("### 🧭 Escribe los lugares que quieres analizar (uno por línea):")
+col_left, col_right = st.columns([3, 1])
+with col_left:
+    st.markdown("<small style='color: gray;'>Ejemplo: Starbucks CDMX o pid:ChIJN1t_tDeuEmsRUsoyG83frY4</small>", unsafe_allow_html=True)
+    places_input = st.text_area(" ", height=120, key="places_input")
+
+with col_right:
+    idioma = st.selectbox("Idioma de reseñas:", options=["Predeterminado", "Español", "Inglés"], index=0)
+
 idioma_map = {"Predeterminado": "", "Español": "es", "Inglés": "en"}
 
-if st.button("Procesar"):
+# Botón de análisis
+st.markdown("<br>", unsafe_allow_html=True)
+btn_col = st.columns([5, 2, 5])[1]
+with btn_col:
+    procesar = st.button("🚀 Analizar Opiniones", use_container_width=True)
+
+# Procesamiento
+if procesar:
     all_reviews = []
     general_data = []
-
     lines = places_input.split("\n")
+
     for line in lines:
         line = line.strip()
         if not line:
@@ -51,7 +66,7 @@ if st.button("Procesar"):
             general_data.append(general_info)
         all_reviews.extend(revs)
 
-    # Guardar DataFrames en session_state para no perderlos
+    # Guardar en session_state
     st.session_state["df"] = pd.DataFrame(all_reviews)
     st.session_state["df_info"] = pd.DataFrame(general_data)
 
@@ -61,14 +76,16 @@ if st.button("Procesar"):
         os.makedirs("data/general_info", exist_ok=True)
         df_info_clean = st.session_state["df_info"].drop(columns=["price_level", "business_status", "open_now"], errors="ignore")
         df_info_clean.to_csv(f"data/general_info/place_info_{timestamp}.csv", index=False)
+
     if not st.session_state["df"].empty:
         os.makedirs("data/last5perplace", exist_ok=True)
         st.session_state["df"].to_csv(f"data/last5perplace/reviews_last5_{timestamp}.csv", index=False)
 
-# Mostrar resultados si existen
+# Información general
 if "df_info" in st.session_state and not st.session_state["df_info"].empty:
     st.markdown("## 🏪 Información General de los Lugares")
     df_info = st.session_state["df_info"].drop(columns=["price_level", "business_status", "open_now"], errors="ignore")
+    
     colA, colB, colC = st.columns(3)
     colA.metric("Total Opiniones (Global)", int(df_info["user_ratings_total"].sum()))
     colB.metric("Promedio Rating Global", f"{df_info['rating'].mean():.2f}")
@@ -76,7 +93,7 @@ if "df_info" in st.session_state and not st.session_state["df_info"].empty:
 
     st.dataframe(df_info)
 
-    # Botón para descargar CSV de info general
+    # Botón para descargar CSV
     csv_info = df_info.to_csv(index=False, encoding="utf-8")
     st.download_button(
         label="📥 Descargar CSV (Info General)",
@@ -86,6 +103,13 @@ if "df_info" in st.session_state and not st.session_state["df_info"].empty:
         key="download_info"
     )
 
+    # Mapa de ubicaciones
+    if "lat" in df_info.columns and "lng" in df_info.columns:
+        st.markdown("### 🗺️ Mapa de Ubicaciones")
+        df_map = df_info[["lat", "lng"]].rename(columns={"lat": "latitude", "lng": "longitude"})
+        st.map(df_map)
+
+# Opiniones recientes
 if "df" in st.session_state and not st.session_state["df"].empty:
     st.markdown("---")
     st.markdown("## 💬 Opiniones Recientes (últimas 5 por lugar)")
@@ -131,7 +155,6 @@ if "df" in st.session_state and not st.session_state["df"].empty:
     st.markdown("### 🗂️ Tabla de Reseñas con Sentimiento")
     st.dataframe(df[["location_name", "author_name", "rating", "datetime_utc", "text_clean", "sentiment"]])
 
-    # Botón para descargar CSV de reseñas
     csv_data = df.to_csv(index=False, encoding="utf-8")
     st.download_button(
         label="📥 Descargar CSV (Opiniones)",
@@ -140,4 +163,3 @@ if "df" in st.session_state and not st.session_state["df"].empty:
         mime="text/csv",
         key="download_reviews"
     )
-
